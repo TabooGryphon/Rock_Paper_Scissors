@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body{background-color: #A7A7A7;}
+    header img {width: 100px;}
+    td h1 {padding: 10px;}
+    h1 {text-align: center;}
+    table{margin: auto;}
+    button{background-color: #D1D1D1; padding: 10px;}
+    #winner{text-align: center; background-color: #D1D1D1; color: #512888; }
+    #player2Result {align-content: center;}
+    #player1Result  {align-content: center;}
+    #player2Result img {border: solid 5px #0051ba; }
+    #player1Result img {border: solid 5px #512888; }
+    #jayhawk {float: right;}
+    #users {float: left; width: 120px; text-align: center;}
+    #users button {width: 100px; height: 60px; align-content: center; padding: 10px;}
+  </style>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="RPS.js"></script>
+</head>
+<body>
+  <header><img src="Power Cat.jpg" alt="Power Cat">
+    <img id="jayhawk" src="KU_logo.png" alt="Jayhawk">
+  </header>
+  <h1>Rock Paper Scissors</h1>
+  <div id="users">
+      <h1>User's Online</h1>
+      <p id="online"></p>
+  </div>
+  <table>
+    <tr>
+      <td>
+        <h1>Choose...</h1>
+      </td>
+      <td>
+        <button type="button" onmouseover="addColor(this)" onmouseout="removeColor(this)" onclick="chooseResult(0)"><img src="rock.jpg" alt="Rock"></button>
+      </td>
+      <td>
+        <button type="button" onmouseover="addColor(this)" onmouseout="removeColor(this)" onclick="chooseResult(1)"><img src="paper.jpg" alt="Paper"></button>
+      </td>
+      <td>
+        <button type="button" onmouseover="addColor(this)" onmouseout="removeColor(this)" onclick="chooseResult(2)"><img src="scissors.jpg" alt="Scissors"></button>
+      </td>
+    </tr>
+    <tr>
+      <td><p id="player1"></p><br><p id="player1Score"></p></td>
+      <td><p id="player1Result"><img src="blank.jpg" alt="Blank"></p></td>
+      <td><p id="player2"></p><br><p id="player2Score"></p></td>
+      <td><p id="player2Result"><img src="blank.jpg" alt="Blank"></p></td>
+    </tr>
+    <tr>
+      <td colspan="4" id="winner"></td>
+    </tr>
+    <tr>
+      <td></td>
+      <td>
+        <button type="button" onclick="connectPlayer()">Connect</button>
+      </td>
+      <td>
+        <button type="button" onclick="clear()">Clear</button>
+      </td>
+      <td>
+        <button type="button" onclick="leave()">Leave Game</button>
+      </td>
+    </tr>
+  </table>
+
+</body>
+<script>
+var socket;
+var player, player2info, opponent;
+var players = [];
+var playersButton = [];
+var buttonNum = 0;
+var Button = [];
+var Users = {};
+var rooms = [];
+var buttonInfo = [];
+var inGame = false;
+var game = false;
+var userConnected = false;
+var myPickIn = false;
+var opponentPickIn = false;
+var connected = false;
+var ryan;
+
+
+socket = io.connect(window.location.host);
+
+var user
+socket.on('connect', sID);
+function sID (){
+  user.id = socket.id;
+}
+
+var name = window.prompt("What is your name?","");
+var RPS = ["rockhand.jpg","paperhand.jpg", "scissorshand.jpg"];
+var rps = ["Rock", "Paper", "Scissors"];
+ function addColor(obj){
+  obj.style.backgroundColor = "#512888";
+}
+function removeColor(obj){
+  obj.style.backgroundColor = "#D1D1D1";
+}
+
+  
+var user = {
+  name: name,
+  score:0 ,
+  pick:"",
+} 
+
+
+
+var opponent = {
+  name: "" ,
+  score: 0 ,
+  pick: "",
+  id: "",
+}
+
+
+document.getElementById("player1").innerHTML = '<h1>' + user.name + '</h1>' + '<br> <h1>' + user.score + '</h1>'
+
+
+function connectPlayer(){
+  if (userConnected == false){
+      socket.emit("connectPlayer", user);
+      userConnected = true;
+      document.getElementById('online').innerHTML = 'You\'re Connected'
+    }
+  }
+
+socket.on('newPlayer', newPlayer);
+
+function newPlayer(obj){
+  if(userConnected){ 
+    var info = {
+      toID: obj.id,
+      fromID: user.id,
+      toName: obj.name,
+      fromName: user.name,
+    }
+    buttonInfo.push(info);
+    Button.push(new ButtonFunction(info));
+    var last = buttonInfo.length - 1;
+    userButton(obj,last);
+    socket.emit('fill', info);
+  }
+}
+
+
+socket.on('allUsers', userList);
+
+function userList(obj){
+  if (userConnected){
+    var btnInfo = {
+      toID: obj.id,
+      fromID: user.id,
+      toName: obj.name,
+      fromName: user.name,
+    }
+    var test = {
+      name: obj.fromName,
+      id: obj.fromID,
+    }
+    buttonInfo.push(btnInfo);
+    Button.push(new ButtonFunction(btnInfo));
+    var last = buttonInfo.length - 1;
+    userButton(test, last);
+    socket.emit('fill', btnInfo);
+    console.log(last);
+  }
+  
+}
+
+
+function userButton(obj, x) {
+  var btn = document.createElement("button");
+  var btnText = document.createTextNode(obj.name);
+  var div2 = document.getElementById("users");
+  var button = document.getElementById(obj.id);
+
+  btn.appendChild(btnText);
+  div2.appendChild(btn);
+  div2.lastElementChild.setAttribute("id", obj.id);
+  div2.lastElementChild.setAttribute("onclick", "Button[x].buttonFunction");
+  console.log(Button[x]);
+}
+
+function ButtonFunction(obj) {
+  this.info = {
+    toName: obj.fromName,
+    toID: obj.fromID,
+    fromName: obj.toName,
+    fromID: obj.toID,
+  }
+
+  this.buttonFunction = function(){
+    socket.emit("requestGame", this.info)
+  }
+} 
+
+
+/* Start of old code
+function userList(obj){
+  if(userConnected){ 
+    var rearange = {
+      id: obj.fromID ,
+      name: obj.fromName ,
+    }
+    Button.push(new UserButton(rearange));
+    var last = Number(Button.length) - 1;
+    console.log(Button[0].fromName);
+    Button[last].createButton();
+    document.getElementById("users").lastElementChild.setAttribute("onclick", "ButtonFunction()");
+    }
+  }
+
+function ButtonFunction(){
+  console.log(Users[0].toID);
+  var last = Users.length - 1;
+  socket.emit('requestGame', Users[0]);
+}
+
+ End of old code */
+
+socket.on('gameRequest', gameRequest);
+
+function gameRequest(obj){
+console.log(obj.fromID);
+  if(inGame == false){
+    var gameInfo = {
+      name: obj.toName,
+      id: obj.toID,
+      address: obj.fromID,
+    }
+    if (window.confirm(obj.fromName + " would like to play a game with you.")) { 
+
+      opponent.name = obj.fromName;
+      opponent.id = obj.fromID;
+      socket.emit('game', gameInfo);
+      inGame = true;
+    }
+  }
+}
+
+socket.on('player2join', player2join);
+
+function player2join(obj) {
+  inGame = true;
+  opponent.name = obj.name;
+  opponent.id = obj.id;
+}
+
+socket.on('userDisconnect', userDisconnect);
+
+function userDisconnect(obj){
+  if(userConnected){
+    var parent = document.getElementById("users");
+    var child =  document.getElementById(obj.id);
+    parent.removeChild(child);
+  }
+}
+
+function chooseResult(obj){
+  if (myPickIn == false){
+    player = {
+      pick: obj,
+    }
+      document.images[5].src = RPS[obj];
+      socket.emit("myPick", player);
+      myPickIn = true;
+      if (opponentPickIn && myPickIn){
+      check();
+      }
+    }
+  }
+
+  function opponentPick(obj){
+      opponentPickIn = true;
+        opponent.pick = obj.pick;
+      if (myPickIn && opponentPickIn){
+        check()
+      }
+    }
+
+    socket.on("player2", opponentInfo);
+
+    function opponentInfo(newPlayer){
+      opponent.name = newPlayer.name;
+      opponent.id = newPlayer.id;
+      
+      document.getElementById("player2").innerHTML = '<h1>' + opponent.name + '</h1>' + '<br> <h1>' + opponent.score + '</h1>'
+    }
+    
+    socket.on("opponent", opponentPick);
+
+
+    function findWinner(me,them){
+      if ( me == them ){
+        return "tie";
+      }else if ( (me + 1) % 3 == them ){
+        return "them";
+      }else if ( (them + 1) % 3 == me ){
+        return "you";
+      }else{
+        return "error"; // shouldn't happen
+      }
+    }
+
+  function score(obj){
+    obj.score = Number(obj.score) + 1;
+    document.getElementById("player1").innerHTML = '<h1>' + user.name + '</h1>' + '<br> <h1>' + user.score + '</h1>'
+    document.getElementById("player2").innerHTML = '<h1>' + opponent.name + '</h1>' + '<br> <h1>' + opponent.score + '</h1>'
+  }
+
+  function check(){
+      document.images[6].src = RPS[opponent.pick];
+      switch ( findWinner(player.pick, opponent.pick) ) {
+        case "tie": 
+          document.getElementById("winner").innerHTML = '<h1>It is a TIE! Let\'s go again!</h1>'
+          myPickIn = false;
+          opponentPickIn = false;
+          break;
+        case "them":
+          document.getElementById("winner").innerHTML = '<h1> ' + opponent.name + ' is the WINNER!</h1>'
+          score(opponent);
+          myPickIn = false;
+          opponentPickIn = false;
+          break;
+        case "you":
+          document.getElementById("winner").innerHTML = '<h1>' + user.name + ' is the WINNER!</h1>'
+          score(user);
+          myPickIn = false;
+          opponentPickIn = false;
+          break;
+    }
+  }
+
+  function clear(){
+    myPickIn = false;
+    opponentPickIn = false;
+    document.images[5].src = blank.jpg
+    document.images[6].src = blank.jpg
+  }
+
+  </script>
+</html>
